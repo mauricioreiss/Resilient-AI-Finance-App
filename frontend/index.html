@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Self-Refined Persona Test Dashboard</title>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Outfit', 'sans-serif'],
+            sans: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      background-color: #050505;
+      font-family: 'Outfit', sans-serif;
+    }
+    .glass-card {
+      background: rgba(17, 17, 17, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body class="text-neutral-100 min-h-screen flex flex-col justify-between">
+
+  <div id="root"></div>
+
+  <!-- React Logic Script -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [accounts, setAccounts] = useState([]);
+      const [selectedAccount, setSelectedAccount] = useState(null);
+      const [transactions, setTransactions] = useState([]);
+      
+      // Estados de Controle de Tela (Os 4 Estados de UI do Frontend)
+      const [isLoading, setIsLoading] = useState(true);
+      const [error, setError] = useState(null);
+      
+      // Controle de Formulário e Modos de Simulação
+      const [tenantId, setTenantId] = useState(1);
+      const [transferAmount, setTransferAmount] = useState('');
+      const [targetAccount, setTargetAccount] = useState('');
+      const [isTransferring, setIsTransferring] = useState(false);
+      const [feedbackMsg, setFeedbackMsg] = useState({ type: '', text: '' });
+      const [xssInput, setXssInput] = useState("<scr" + "ipt>alert('XSS Hack!')</scr" + "ipt> Compra de Café");
+
+      // Buscar Contas do Backend
+      const fetchAccounts = async (currentTenant = tenantId) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const res = await fetch('http://localhost:8000/api/accounts', {
+            headers: { 'X-Tenant-Id': String(currentTenant) }
+          });
+          if (!res.ok) throw new Error('Não foi possível conectar ao servidor backend.');
+          const data = await res.json();
+          setAccounts(data);
+          if (data.length > 0) {
+            setSelectedAccount(data[0]);
+            fetchTransactions(data[0].id, currentTenant);
+          } else {
+            setSelectedAccount(null);
+            setTransactions([]);
+          }
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Buscar Transações Recentes
+      const fetchTransactions = async (accountId, currentTenant = tenantId) => {
+        try {
+          const res = await fetch(`http://localhost:8000/api/accounts/${accountId}/transactions`, {
+            headers: { 'X-Tenant-Id': String(currentTenant) }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setTransactions(data);
+          }
+        } catch (err) {
+          console.error("Erro ao carregar transações", err);
+        }
+      };
+
+      useEffect(() => {
+        fetchAccounts();
+      }, []);
+
+      // Mudar Tenant de simulação (Mostrando o isolamento do backend)
+      const handleTenantChange = (newTenant) => {
+        setTenantId(newTenant);
+        fetchAccounts(newTenant);
+      };
+
+      const handleAccountClick = (account) => {
+        setSelectedAccount(account);
+        fetchTransactions(account.id);
+      };
+
+      // Executar transferência via API
+      const handleTransferSubmit = async (e) => {
+        e.preventDefault();
+        if (!selectedAccount || !targetAccount || !transferAmount) return;
+        
+        setIsTransferring(true);
+        setFeedbackMsg({ type: '', text: '' });
+
+        try {
+          const res = await fetch('http://localhost:8000/api/transfer', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Tenant-Id': String(tenantId)
+            },
+            body: JSON.stringify({
+              from_account_id: selectedAccount.id,
+              to_account_id: parseInt(targetAccount),
+              amount: parseFloat(transferAmount)
+            })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.detail || 'Ocorreu um erro na transferência.');
+          }
+
+          setFeedbackMsg({ type: 'success', text: `Transferência de $${transferAmount} efetuada!` });
+          setTransferAmount('');
+          
+          // Recarregar os dados para atualizar os saldos
+          await fetchAccounts(tenantId);
+        } catch (err) {
+          setFeedbackMsg({ type: 'error', text: err.message });
+        } finally {
+          setIsTransferring(false);
+        }
+      };
+
+      return (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
+          
+          {/* Header do Post */}
+          <header className="flex flex-col md:flex-row md:items-center justify-between border-b border-neutral-800 pb-6 gap-4">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded">
+                Teste de Persona Auto-Refinada
+              </span>
+              <h1 className="text-3xl font-bold tracking-tight text-white font-display mt-2">
+                Painel de Teste Multi-Agente
+              </h1>
+              <p className="text-sm text-neutral-400 mt-1">
+                Visualizando e provando o comportamento atômico e seguro das novas personas.
+              </p>
+            </div>
+            
+            {/* Controles de Simulação (Para gravar o Post) */}
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-neutral-400 font-semibold">Simular Tenant (Anti-IDOR):</label>
+              <button 
+                onClick={() => handleTenantChange(1)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${tenantId === 1 ? 'bg-white text-black border-white' : 'border-neutral-800 text-neutral-400 hover:text-white'}`}
+              >
+                Tenant 1 (Mauri)
+              </button>
+              <button 
+                onClick={() => handleTenantChange(2)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${tenantId === 2 ? 'bg-white text-black border-white' : 'border-neutral-800 text-neutral-400 hover:text-white'}`}
+              >
+                Tenant 2 (Outro)
+              </button>
+            </div>
+          </header>
+
+          {/* GRID PRINCIPAL */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* COLUNA ESQUERDA: LISTA DE CONTAS */}
+            <div className="space-y-4">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Contas Disponíveis</h2>
+              
+              {isLoading ? (
+                // Skeletons de Contas
+                <div className="space-y-3">
+                  <div className="h-16 bg-neutral-900/50 border border-neutral-800/40 rounded-xl animate-pulse" />
+                  <div className="h-16 bg-neutral-900/50 border border-neutral-800/40 rounded-xl animate-pulse" />
+                </div>
+              ) : error ? (
+                // Estado de Erro de Contas
+                <div className="p-4 rounded-xl border border-red-500/20 bg-red-950/10 text-center">
+                  <p className="text-xs text-red-400">{error}</p>
+                  <button 
+                    onClick={() => fetchAccounts()}
+                    className="mt-3 px-3 py-1 text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500/20"
+                  >
+                    Tentar Novamente
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {accounts.map(acc => (
+                    <div 
+                      key={acc.id}
+                      onClick={() => handleAccountClick(acc)}
+                      className={`p-4 rounded-xl cursor-pointer border transition-all ${selectedAccount?.id === acc.id ? 'bg-white/5 border-white/20' : 'bg-neutral-950 border-neutral-900 hover:border-neutral-800'}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-neutral-400">{acc.name}</span>
+                        <span className="text-xs text-neutral-500">ID: {acc.id}</span>
+                      </div>
+                      <div className="text-xl font-bold tracking-tight text-white font-display mt-1">
+                        ${parseFloat(acc.balance).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* COLUNA CENTRAL: O CARD REFINADO (COMPONENT TEST) */}
+            <div className="space-y-4">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Componente Refinado (Saldo)</h2>
+              
+              {/* COMPONENTE DO CARD DE SALDO REFINADO */}
+              <div className="p-6 rounded-2xl border border-neutral-800 bg-gradient-to-b from-neutral-900/40 to-neutral-950/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
+                {/* Glow de fundo premium */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                {isLoading ? (
+                  // Loading State (Skeleton Proporcional para evitar Layout Shift)
+                  <div className="space-y-6 animate-pulse">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-24 bg-neutral-800 rounded" />
+                      <div className="h-5 w-12 bg-neutral-800 rounded" />
+                    </div>
+                    <div className="h-10 w-36 bg-neutral-800 rounded" />
+                    <div className="space-y-3 pt-6 border-t border-neutral-800/40">
+                      <div className="h-8 bg-neutral-800/60 rounded" />
+                      <div className="h-8 bg-neutral-800/60 rounded" />
+                    </div>
+                  </div>
+                ) : selectedAccount ? (
+                  // Success State
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-neutral-400">Saldo Total</span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400">
+                        +14.2%
+                      </span>
+                    </div>
+
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-semibold tracking-tight font-display text-white">
+                        ${parseFloat(selectedAccount.balance).toFixed(2)}
+                      </span>
+                      <span className="text-sm text-neutral-500">USD</span>
+                    </div>
+
+                    {/* Sparkline Visual Falso (Premium Vercel Sparkline) */}
+                    <div className="h-6 w-full flex items-end gap-1.5 pt-2">
+                      <div className="h-2 w-full bg-neutral-800 rounded-sm" />
+                      <div className="h-3 w-full bg-neutral-800 rounded-sm" />
+                      <div className="h-4 w-full bg-neutral-800 rounded-sm" />
+                      <div className="h-3 w-full bg-neutral-800 rounded-sm" />
+                      <div className="h-5 w-full bg-neutral-700 rounded-sm" />
+                      <div className="h-6 w-full bg-emerald-500/30 rounded-sm" />
+                      <div className="h-5 w-full bg-emerald-500/50 rounded-sm" />
+                    </div>
+
+                    {/* Atividade Recente */}
+                    <div className="pt-4 border-t border-neutral-800/60 space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Atividade Recente</h4>
+                      
+                      {transactions.length === 0 ? (
+                        // Empty State elegante
+                        <p className="text-xs text-neutral-500 py-3 text-center">Nenhuma transação recente para exibir.</p>
+                      ) : (
+                        <ul className="space-y-2.5" role="list">
+                          {transactions.map(tx => (
+                            <li 
+                              key={tx.id} 
+                              className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-900/40 transition-colors focus-within:ring-1 focus-within:ring-white/20"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-1.5 rounded-md ${tx.type === 'credit' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-neutral-800 text-neutral-400'}`}>
+                                  {tx.type === 'credit' ? (
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                                  ) : (
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                                  )}
+                                </div>
+                                {/* Segurança OWASP Client-Side: Impede renderização de tags script (previne injeção visual) */}
+                                <span className="text-xs font-medium text-neutral-300">
+                                  {tx.description}
+                                </span>
+                              </div>
+                              <span className={`text-xs font-semibold ${tx.type === 'credit' ? 'text-emerald-400' : 'text-neutral-200'}`}>
+                                {tx.type === 'credit' ? '+' : '-'}${parseFloat(tx.amount).toFixed(2)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  // Caso não existam contas no tenant atual (Empty State do Painel)
+                  <p className="text-xs text-neutral-500 py-8 text-center">Nenhuma conta selecionada no tenant atual.</p>
+                )}
+              </div>
+            </div>
+
+            {/* COLUNA DIREITA: FORMULÁRIO DE TRANSFERÊNCIA & SIMULAÇÕES DE ATAQUE */}
+            <div className="space-y-6">
+              
+              {/* Form de Transferência */}
+              <div className="p-6 rounded-2xl border border-neutral-800 bg-neutral-900/20">
+                <h3 className="text-sm font-semibold text-white mb-4">Simular Transferência</h3>
+                
+                <form onSubmit={handleTransferSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Conta de Origem (De):</label>
+                    <input 
+                      type="text" 
+                      disabled
+                      value={selectedAccount ? `${selectedAccount.name} ($${parseFloat(selectedAccount.balance).toFixed(2)})` : 'Nenhuma'}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Conta de Destino (Para):</label>
+                    <select 
+                      required
+                      value={targetAccount}
+                      onChange={(e) => setTargetAccount(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-200 focus:outline-none focus:border-neutral-700"
+                    >
+                      <option value="">Selecione a conta de destino...</option>
+                      {/* Mostrar as contas que não sejam a conta de origem */}
+                      {accounts.filter(a => a.id !== selectedAccount?.id).map(a => (
+                        <option key={a.id} value={a.id}>{a.name} (ID: {a.id})</option>
+                      ))}
+                      {/* Forçar ID 3 na lista caso queira tentar cross-tenant (para testar barreira anti-IDOR) */}
+                      {tenantId === 1 && (
+                        <option value="3">Conta Hacker (ID: 3 - Tenant 2)</option>
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Valor ($):</label>
+                    <input 
+                      type="number"
+                      required
+                      step="0.01"
+                      min="0.01"
+                      value={transferAmount}
+                      onChange={(e) => setTransferAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-200 focus:outline-none focus:border-neutral-700"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={isTransferring || !selectedAccount}
+                    className="w-full py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-neutral-800 disabled:text-neutral-500 font-semibold text-xs text-black transition-colors"
+                  >
+                    {isTransferring ? 'Processando Transação...' : 'Transferir Recursos (Simular Lock)'}
+                  </button>
+                </form>
+
+                {/* Mensagens de Feedback */}
+                {feedbackMsg.text && (
+                  <div className={`mt-4 p-3 rounded-lg border text-xs ${feedbackMsg.type === 'success' ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-400' : 'bg-red-950/10 border-red-500/20 text-red-400'}`}>
+                    {feedbackMsg.text}
+                  </div>
+                )}
+              </div>
+
+              {/* Bloco explicativo da Autoavaliação */}
+              <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-neutral-400 space-y-2.5">
+                <h4 className="font-semibold text-neutral-200">Como funciona o teste?</h4>
+                <p>1. <strong>Validação Transacional</strong>: A transferência simula latência de 1s e trava o banco (SQLite transactional lock). Tentar enviar saldo sem fundos ou valores negativos falhará nativamente.</p>
+                <p>2. <strong>Isolamento Anti-IDOR</strong>: Mude para o <strong>Tenant 2</strong> no header. As contas do Mauricio somem da tela. Se tentar forçar um envio para o ID 3 (Hacker) estando no Tenant 1, a API recusará com 404 para evitar vazamento.</p>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
