@@ -15,8 +15,6 @@ For this test:
 2. **Auto-Refinement**: The personas' prompts were updated in the system to inject explicit rules for preemptive diagnostics, security (OWASP), concurrency, and advanced UI design.
 3. **Surgical Writing**: The AI itself modified and applied these changes to its own system prompts and executed the code generation, testing the pipeline locally.
 
-To understand the full story of how the AI audited and evolved its own operational brain, read the [Behind the Scenes Refinement Workflow](file:///c:/Users/mauri/Desktop/Projetos_Pessoais/demonstracao_teste_personas/artigo_explicativo_workflow.md).
-
 ---
 
 ## 🛠️ Application & Architecture
@@ -52,8 +50,6 @@ Implemented by `@persona-frontend` with high visual fidelity and robust state ha
 ├── frontend/
 │   └── index.html            # React SPA with Tailwind CSS
 ├── .gitignore                # Git exclusions (caches, environment configs, SQLite databases)
-├── artigo_linkedin_draft.md  # LinkedIn post draft (in pt-BR)
-├── artigo_explicativo_workflow.md # Behind the scenes guide (in pt-BR)
 └── README.md                 # This file
 ```
 
