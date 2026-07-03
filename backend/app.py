@@ -39,12 +39,12 @@ Base.metadata.create_all(bind=engine)
 # População inicial (Seed)
 db = SessionLocal()
 if db.query(Account).count() == 0:
-    # Contas do Tenant 1 (Mauricio)
-    db.add(Account(id=1, tenant_id=1, name="Conta Principal Mauri", balance=Decimal("150.00")))
-    db.add(Account(id=2, tenant_id=1, name="Conta Poupanca Mauri", balance=Decimal("50.00")))
+    # Contas do Tenant 1
+    db.add(Account(id=1, tenant_id=1, name="Conta Principal", balance=Decimal("150.00")))
+    db.add(Account(id=2, tenant_id=1, name="Conta Poupança", balance=Decimal("50.00")))
     
-    # Conta do Tenant 2 (Outro usuário - simulando isolamento anti-IDOR)
-    db.add(Account(id=3, tenant_id=2, name="Conta Hacker (Tenant 2)", balance=Decimal("1000.00")))
+    # Conta do Tenant 2 (Simulando isolamento anti-IDOR)
+    db.add(Account(id=3, tenant_id=2, name="Conta Externa (Tenant 2)", balance=Decimal("1000.00")))
     
     # Transações iniciais
     db.add(Transaction(tenant_id=1, account_id=1, description="Pagamento de Salario", amount=Decimal("200.00"), type="credit"))
