@@ -62,15 +62,13 @@
       const [isLoading, setIsLoading] = useState(true);
       const [error, setError] = useState(null);
       
-      // Controle de Formulário e Modos de Simulação
       const [tenantId, setTenantId] = useState(1);
       const [transferAmount, setTransferAmount] = useState('');
       const [targetAccount, setTargetAccount] = useState('');
       const [isTransferring, setIsTransferring] = useState(false);
       const [feedbackMsg, setFeedbackMsg] = useState({ type: '', text: '' });
-      const [xssInput, setXssInput] = useState("<scr" + "ipt>alert('XSS Hack!')</scr" + "ipt> Compra de Café");
+      const [xssInput, setXssInput] = useState("<scr" + "ipt>alert('XSS Hack!')</scr" + "ipt> Coffee Purchase");
 
-      // Buscar Contas do Backend
       const fetchAccounts = async (currentTenant = tenantId) => {
         setIsLoading(true);
         setError(null);
@@ -78,7 +76,7 @@
           const res = await fetch('http://localhost:8000/api/accounts', {
             headers: { 'X-Tenant-Id': String(currentTenant) }
           });
-          if (!res.ok) throw new Error('Não foi possível conectar ao servidor backend.');
+          if (!res.ok) throw new Error('Failed to connect to the backend server.');
           const data = await res.json();
           setAccounts(data);
           if (data.length > 0) {
@@ -95,7 +93,6 @@
         }
       };
 
-      // Buscar Transações Recentes
       const fetchTransactions = async (accountId, currentTenant = tenantId) => {
         try {
           const res = await fetch(`http://localhost:8000/api/accounts/${accountId}/transactions`, {
@@ -106,7 +103,7 @@
             setTransactions(data);
           }
         } catch (err) {
-          console.error("Erro ao carregar transações", err);
+          console.error("Error loading transactions", err);
         }
       };
 
@@ -114,7 +111,6 @@
         fetchAccounts();
       }, []);
 
-      // Mudar Tenant de simulação (Mostrando o isolamento do backend)
       const handleTenantChange = (newTenant) => {
         setTenantId(newTenant);
         fetchAccounts(newTenant);
@@ -125,7 +121,6 @@
         fetchTransactions(account.id);
       };
 
-      // Executar transferência via API
       const handleTransferSubmit = async (e) => {
         e.preventDefault();
         if (!selectedAccount || !targetAccount || !transferAmount) return;
@@ -150,13 +145,12 @@
           const data = await res.json();
 
           if (!res.ok) {
-            throw new Error(data.detail || 'Ocorreu um erro na transferência.');
+            throw new Error(data.detail || 'An error occurred during the transfer.');
           }
 
-          setFeedbackMsg({ type: 'success', text: `Transferência de $${transferAmount} efetuada!` });
+          setFeedbackMsg({ type: 'success', text: `Transfer of $${transferAmount} completed!` });
           setTransferAmount('');
           
-          // Recarregar os dados para atualizar os saldos
           await fetchAccounts(tenantId);
         } catch (err) {
           setFeedbackMsg({ type: 'error', text: err.message });
@@ -171,60 +165,54 @@
       return (
         <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
           
-          {/* Header do Post */}
           <header className="flex flex-col md:flex-row md:items-center justify-between border-b border-neutral-800 pb-6 gap-4">
             <div>
               <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded">
-                Teste de Persona Auto-Refinada
+                Self-Refined Persona Testbed
               </span>
               <h1 className="text-3xl font-bold tracking-tight text-white font-display mt-2">
-                Painel de Teste Multi-Agente
+                Multi-Agent Testbed Dashboard
               </h1>
               <p className="text-sm text-neutral-400 mt-1">
-                Visualizando e provando o comportamento atômico e seguro das novas personas.
+                Visualizing and proving the atomic, secure behavior of the new AI personas.
               </p>
             </div>
             
-            {/* Controles de Simulação (Para gravar o Post) */}
             <div className="flex items-center gap-3">
-              <label className="text-xs text-neutral-400 font-semibold">Simular Tenant (Anti-IDOR):</label>
+              <label className="text-xs text-neutral-400 font-semibold">Simulate Tenant (Anti-IDOR):</label>
               <button 
                 onClick={() => handleTenantChange(1)}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-300 ${tenantId === 1 ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]' : 'border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'}`}
               >
-                Tenant 1 (Conta Principal)
+                Tenant 1 (Primary Accounts)
               </button>
               <button 
                 onClick={() => handleTenantChange(2)}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-300 ${tenantId === 2 ? 'bg-red-500 text-white border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.2)]' : 'border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'}`}
               >
-                Tenant 2 (Conta Externa)
+                Tenant 2 (External Accounts)
               </button>
             </div>
           </header>
 
-          {/* GRID PRINCIPAL */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* COLUNA ESQUERDA: LISTA DE CONTAS */}
             <div className="space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Contas Disponíveis</h2>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Available Accounts</h2>
               
               {isLoading ? (
-                // Skeletons de Contas
                 <div className="space-y-3">
                   <div className="h-16 bg-neutral-900/50 border border-neutral-800/40 rounded-xl animate-pulse" />
                   <div className="h-16 bg-neutral-900/50 border border-neutral-800/40 rounded-xl animate-pulse" />
                 </div>
               ) : error ? (
-                // Estado de Erro de Contas
                 <div className="p-4 rounded-xl border border-red-500/20 bg-red-950/10 text-center">
                   <p className="text-xs text-red-400">{error}</p>
                   <button 
                     onClick={() => fetchAccounts()}
                     className="mt-3 px-3 py-1 text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500/20"
                   >
-                    Tentar Novamente
+                    Retry
                   </button>
                 </div>
               ) : (
@@ -255,17 +243,13 @@
               )}
             </div>
 
-            {/* COLUNA CENTRAL: O CARD REFINADO (COMPONENT TEST) */}
             <div className="space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Componente Refinado (Saldo)</h2>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Refined Component (Balance)</h2>
               
-              {/* COMPONENTE DO CARD DE SALDO REFINADO */}
               <div className="p-6 rounded-2xl border border-neutral-800 bg-gradient-to-b from-neutral-900/60 to-neutral-950/80 shadow-2xl backdrop-blur-md relative overflow-hidden">
-                {/* Glow de fundo premium */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
                 {isLoading ? (
-                  // Loading State (Skeleton Proporcional para evitar Layout Shift)
                   <div className="space-y-6 animate-pulse">
                     <div className="flex justify-between items-center">
                       <div className="h-4 w-24 bg-neutral-800 rounded" />
@@ -278,10 +262,9 @@
                     </div>
                   </div>
                 ) : selectedAccount ? (
-                  // Success State
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-neutral-400">Saldo Total</span>
+                      <span className="text-sm font-medium text-neutral-400">Total Balance</span>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400">
                         +14.2%
                       </span>
@@ -294,7 +277,6 @@
                       <span className="text-sm text-neutral-500">USD</span>
                     </div>
 
-                    {/* Sparkline Visual Falso (Premium Vercel Sparkline com animação) */}
                     <div className="h-10 w-full flex items-end gap-1.5 pt-2 group cursor-pointer">
                       <div className="h-2 w-full bg-neutral-800/80 rounded-sm transition-all duration-300 group-hover:h-3" />
                       <div className="h-4 w-full bg-neutral-800/80 rounded-sm transition-all duration-300 group-hover:h-5" />
@@ -305,13 +287,11 @@
                       <div className="h-8 w-full bg-emerald-500/50 rounded-sm transition-all duration-300 group-hover:bg-emerald-500/60" />
                     </div>
 
-                    {/* Atividade Recente */}
                     <div className="pt-4 border-t border-neutral-800/60 space-y-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Atividade Recente</h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Recent Activity</h4>
                       
                       {transactions.length === 0 ? (
-                        // Empty State elegante
-                        <p className="text-xs text-neutral-500 py-3 text-center">Nenhuma transação recente para exibir.</p>
+                        <p className="text-xs text-neutral-500 py-3 text-center">No recent transactions to display.</p>
                       ) : (
                         <ul className="space-y-2.5" role="list">
                           {transactions.map(tx => (
@@ -327,7 +307,6 @@
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                                   )}
                                 </div>
-                                {/* Segurança OWASP Client-Side: Impede renderização de tags script (previne injeção visual) */}
                                 <span className="text-xs font-medium text-neutral-300">
                                   {tx.description}
                                 </span>
@@ -342,32 +321,29 @@
                     </div>
                   </div>
                 ) : (
-                  // Caso não existam contas no tenant atual (Empty State do Painel)
-                  <p className="text-xs text-neutral-500 py-8 text-center">Nenhuma conta selecionada no tenant atual.</p>
+                  <p className="text-xs text-neutral-500 py-8 text-center">No account selected in the current tenant.</p>
                 )}
               </div>
             </div>
 
-            {/* COLUNA DIREITA: FORMULÁRIO DE TRANSFERÊNCIA & SIMULAÇÕES DE ATAQUE */}
             <div className="space-y-6">
               
-              {/* Form de Transferência */}
               <div className="p-6 rounded-2xl border border-neutral-800 bg-neutral-900/20">
-                <h3 className="text-sm font-semibold text-white mb-4">Simular Transferência</h3>
+                <h3 className="text-sm font-semibold text-white mb-4">Simulate Transfer</h3>
                 
                 <form onSubmit={handleTransferSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Conta de Origem (De):</label>
+                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Source Account (From):</label>
                     <input 
                       type="text" 
                       disabled
-                      value={selectedAccount ? `${selectedAccount.name} ($${parseFloat(selectedAccount.balance).toFixed(2)})` : 'Nenhuma'}
+                      value={selectedAccount ? `${selectedAccount.name} ($${parseFloat(selectedAccount.balance).toFixed(2)})` : 'None'}
                       className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-500 cursor-not-allowed"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Conta de Destino (Para):</label>
+                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Target Account (To):</label>
                     <select 
                       required
                       value={targetAccount}
@@ -377,22 +353,22 @@
                     >
                       {hasDestinations ? (
                         <>
-                          <option value="">Selecione a conta de destino...</option>
+                          <option value="">Select target account...</option>
                           {eligibleDestinations.map(a => (
                             <option key={a.id} value={a.id}>{a.name} (ID: {a.id})</option>
                           ))}
                           {tenantId === 1 && (
-                            <option value="3">Conta Hacker (ID: 3 - Tenant 2)</option>
+                            <option value="3">Hacker Account (ID: 3 - Tenant 2)</option>
                           )}
                         </>
                       ) : (
-                        <option value="">Sem outras contas neste tenant</option>
+                        <option value="">No other accounts in this tenant</option>
                       )}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Valor ($):</label>
+                    <label className="block text-xs text-neutral-400 font-medium mb-1.5">Amount ($):</label>
                     <input 
                       type="number"
                       required
@@ -410,11 +386,10 @@
                     disabled={isTransferring || !selectedAccount}
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 active:scale-[0.98] disabled:from-neutral-800 disabled:to-neutral-900 disabled:text-neutral-600 font-bold text-xs text-black tracking-wide transition-all duration-200 shadow-lg shadow-emerald-950/20"
                   >
-                    {isTransferring ? 'Processando Transação...' : 'Transferir Recursos (Simular Lock)'}
+                    {isTransferring ? 'Processing Transaction...' : 'Transfer Funds (Simulate Lock)'}
                   </button>
                 </form>
 
-                {/* Mensagens de Feedback */}
                 {feedbackMsg.text && (
                   <div className={`mt-4 p-3 rounded-lg border text-xs ${feedbackMsg.type === 'success' ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-400' : 'bg-red-950/10 border-red-500/20 text-red-400'}`}>
                     {feedbackMsg.text}
@@ -422,11 +397,10 @@
                 )}
               </div>
 
-              {/* Bloco explicativo da Autoavaliação */}
               <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-neutral-400 space-y-2.5">
-                <h4 className="font-semibold text-neutral-200">Como funciona o teste?</h4>
-                <p>1. <strong>Validação Transacional</strong>: A transferência simula latência de 1s e trava o banco (SQLite transactional lock). Tentar enviar saldo sem fundos ou valores negativos falhará nativamente.</p>
-                <p>2. <strong>Isolamento Anti-IDOR</strong>: Mude para o <strong>Tenant 2</strong> no header. As contas do Mauricio somem da tela. Se tentar forçar um envio para o ID 3 (Hacker) estando no Tenant 1, a API recusará com 404 para evitar vazamento.</p>
+                <h4 className="font-semibold text-neutral-200">How does the test work?</h4>
+                <p>1. <strong>Transactional Validation</strong>: The transfer simulates a 1s network latency and locks the database (SQLite transactional lock). Attempting to send funds with insufficient balance or negative values will fail natively.</p>
+                <p>2. <strong>Anti-IDOR Isolation</strong>: Switch to <strong>Tenant 2</strong> in the header. The accounts for Tenant 1 disappear from the screen. If you attempt to force a transfer to Account 3 (Hacker Account) while on Tenant 1, the API will reject it with a 404/400 error to prevent unauthorized data access.</p>
               </div>
 
             </div>

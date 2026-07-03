@@ -40,17 +40,17 @@ Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 if db.query(Account).count() == 0:
     # Contas do Tenant 1
-    db.add(Account(id=1, tenant_id=1, name="Conta Principal", balance=Decimal("150.00")))
-    db.add(Account(id=2, tenant_id=1, name="Conta Poupança", balance=Decimal("50.00")))
+    db.add(Account(id=1, tenant_id=1, name="Primary Account", balance=Decimal("150.00")))
+    db.add(Account(id=2, tenant_id=1, name="Savings Account", balance=Decimal("50.00")))
     
     # Contas do Tenant 2 (Simulando isolamento anti-IDOR)
-    db.add(Account(id=3, tenant_id=2, name="Conta Externa (Tenant 2)", balance=Decimal("1000.00")))
-    db.add(Account(id=4, tenant_id=2, name="Conta Poupança (Tenant 2)", balance=Decimal("500.00")))
+    db.add(Account(id=3, tenant_id=2, name="External Account (Tenant 2)", balance=Decimal("1000.00")))
+    db.add(Account(id=4, tenant_id=2, name="Savings Account (Tenant 2)", balance=Decimal("500.00")))
     
     # Transações iniciais
-    db.add(Transaction(tenant_id=1, account_id=1, description="Pagamento de Salario", amount=Decimal("200.00"), type="credit"))
-    db.add(Transaction(tenant_id=1, account_id=1, description="Servicos de Nuvem AWS", amount=Decimal("50.00"), type="debit"))
-    db.add(Transaction(tenant_id=2, account_id=3, description="Aporte Inicial", amount=Decimal("1000.00"), type="credit"))
+    db.add(Transaction(tenant_id=1, account_id=1, description="Salary Payment", amount=Decimal("200.00"), type="credit"))
+    db.add(Transaction(tenant_id=1, account_id=1, description="AWS Cloud Services", amount=Decimal("50.00"), type="debit"))
+    db.add(Transaction(tenant_id=2, account_id=3, description="Initial Deposit", amount=Decimal("1000.00"), type="credit"))
     db.commit()
 db.close()
 
@@ -87,7 +87,7 @@ async def get_transactions(account_id: int, x_tenant_id: int = Header(default=1)
         # Verifica se a conta pertence ao Tenant (Proteção contra IDOR)
         account = db.query(Account).filter(Account.id == account_id, Account.tenant_id == x_tenant_id).first()
         if not account:
-            raise HTTPException(status_code=404, detail="Conta nao encontrada neste tenant.")
+            raise HTTPException(status_code=404, detail="Account not found in this tenant.")
             
         transactions = db.query(Transaction).filter(
             Transaction.account_id == account_id, 
@@ -129,14 +129,14 @@ async def execute_transfer(payload: TransferRequest, x_tenant_id: int = Header(d
             db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Uma ou ambas as contas nao foram encontradas."
+                detail="One or both accounts were not found in this tenant."
             )
 
         if from_account.balance < payload.amount:
             db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Saldo insuficiente na conta de origem."
+                detail="Insufficient balance in source account."
             )
 
         # Processamento atômico de saldo
@@ -147,14 +147,14 @@ async def execute_transfer(payload: TransferRequest, x_tenant_id: int = Header(d
         db.add(Transaction(
             tenant_id=x_tenant_id,
             account_id=from_account.id,
-            description=f"Transferência para {to_account.name}",
+            description=f"Transfer to {to_account.name}",
             amount=payload.amount,
             type="debit"
         ))
         db.add(Transaction(
             tenant_id=x_tenant_id,
             account_id=to_account.id,
-            description=f"Transferência de {from_account.name}",
+            description=f"Transfer from {from_account.name}",
             amount=payload.amount,
             type="credit"
         ))
