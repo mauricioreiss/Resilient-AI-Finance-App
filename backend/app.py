@@ -43,12 +43,14 @@ if db.query(Account).count() == 0:
     db.add(Account(id=1, tenant_id=1, name="Conta Principal", balance=Decimal("150.00")))
     db.add(Account(id=2, tenant_id=1, name="Conta Poupança", balance=Decimal("50.00")))
     
-    # Conta do Tenant 2 (Simulando isolamento anti-IDOR)
+    # Contas do Tenant 2 (Simulando isolamento anti-IDOR)
     db.add(Account(id=3, tenant_id=2, name="Conta Externa (Tenant 2)", balance=Decimal("1000.00")))
+    db.add(Account(id=4, tenant_id=2, name="Conta Poupança (Tenant 2)", balance=Decimal("500.00")))
     
     # Transações iniciais
     db.add(Transaction(tenant_id=1, account_id=1, description="Pagamento de Salario", amount=Decimal("200.00"), type="credit"))
     db.add(Transaction(tenant_id=1, account_id=1, description="Servicos de Nuvem AWS", amount=Decimal("50.00"), type="debit"))
+    db.add(Transaction(tenant_id=2, account_id=3, description="Aporte Inicial", amount=Decimal("1000.00"), type="credit"))
     db.commit()
 db.close()
 
